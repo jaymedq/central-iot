@@ -5,7 +5,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def home():
-    return render_template("index.html", "style.css")
+    return render_template("index.html")
     #return "Hello! This is the main page of Central Iot project <h1>Welcome to the home page</h1>"
 
 @app.route("/<name>")
