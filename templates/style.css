@@ -1,0 +1,44 @@
+body{
+    background-color: #f5f4f4;
+}
+
+.form{
+    width: 1000px;
+    margin: auto;
+    padding-top: 200px;
+    font-family: sans-serif;
+}
+
+.centralIot{
+    font-size: 75px;
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.loginsenha{
+    margin-left: 320px;
+}
+
+.loginsenha > label{
+    font-weight: bold;
+    font-size: 30px;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.loginsenha > input{
+    width: 50%;
+    padding: 8px;
+    margin-bottom: 20px;
+}
+
+.loginsenha > button{
+    background-color: #12179e;
+    width: 200px;
+    padding: 15px;
+    margin-left: 80px;
+    margin-top: 20px;
+    color: white;
+    font-weight: bold;
+    font-size: 30px;
+}
