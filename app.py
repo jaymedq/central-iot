@@ -16,10 +16,6 @@ def user(name:str = "User"):
 def admin():
     return redirect(url_for("home"))
 
-@app.route("/inicio")
-def home():
-    return render_template("inicio.html")
-
 if __name__ == "__main__":
     app.run()
 
