@@ -34,14 +34,25 @@ body{
     font-size: 20px;
 }
 
-.loginsenha > button{
-    background-color: #12179e;
+button{
     width: 200px;
-    padding: 15px;
+    padding: 20px;
     margin-left: 80px;
     margin-top: 20px;
     color: white;
     font-weight: bold;
-    font-size: 30px;
+    font-size: 25px;
     cursor: pointer;
+}
+
+.btnazul{
+    background-color: #12179e;
+}
+
+.btnverdeclaro{
+    background-color: #42b49f;
+}
+
+.alinharpaginicial{
+    margin-left: 180px;
 }
