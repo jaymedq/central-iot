@@ -1,0 +1,3 @@
+[submodule "local/LoRa"]
+	path = local/LoRa
+	url = https://github.com/starnight/LoRa
