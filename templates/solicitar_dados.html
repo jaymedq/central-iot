@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitar Dados</title>
+
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+
+<body>
+    <form class="form" action="">
+        <div class="solicitardados_titulo">
+            SOLICITAR <br>DADOS
+        </div>  
+            
+        <div class="form-field">
+            <label>ID do Dispositivo:</label>
+            <input type="text" name="usuario">
+        </div>
+
+        <div class="form-field">
+            <label>Data Inicial:</label>
+            <input type="date" name="usuario">
+        </div>
+
+        <div class="form-field">
+            <label>Data Final:</label>
+            <input type="date" name="usuario">
+        </div>
+
+        <div class="center-buttons bg-container-buttons">
+            <button class="btn bg-verdeclaro bg-solicitar bg-solicitar-button" type="submit">SOLICITAR</button>
+
+            <button class="btn bg-vermelho bg-solicitar" type="submit">DOWNLOAD DADOS</button>
+        </div>
+
+    </form>
+
+    <div>
+        <table class="central-table">
+            <thead>
+                <tr>
+                    <th>ID SENSOR</th>
+                    <th>DATA</th>
+                    <th>VALOR</th>
+                    <th>GRANDEZA</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Eletrofrio</td>
+                    <td>08/08/2022</td>
+                    <td>127</td>
+                    <td>V</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
