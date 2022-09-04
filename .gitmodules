@@ -3,4 +3,4 @@
 	url = https://github.com/starnight/LoRa
 [submodule "local/pySX127x"]
 	path = local/pySX127x
-	url = https://github.com/rpsreal/pySX127x.git
+	url = https://github.com/jaymedq/pySX127x.git
