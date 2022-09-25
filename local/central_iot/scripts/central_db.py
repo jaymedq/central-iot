@@ -11,7 +11,8 @@ class CentralDb(object):
 
     Base = declarative_base()
 
-    def __init__(self, db_path: os.path = 'sqlite:////home/pi/central-iot/local/database/central.db'):
+    # def __init__(self, db_path: os.path = 'sqlite:////home/pi/central-iot/local/database/central.db'):
+    def __init__(self, db_path: os.path = 'C:\\Users\\claud\\Desktop\\Jayme\\central-iot\\central-iot\\local\\database\\central.db'):
         self.db_path = db_path
         self.engine = sqlalchemy.create_engine(f'sqlite:///{db_path}', echo = True, future = True)
         self.metadata = MetaData()
@@ -23,7 +24,7 @@ class CentralDb(object):
 
     def insert_measure(self, sensor_id, value):
         with self.engine.connect() as conn:
-            stt = insert(self.user_table).values(
+            stt = insert(self.measure_table).values(
                 Measure_ID = 1,
                 Sensor_ID= sensor_id, 
                 Date_Time= datetime.now().timestamp(), 
@@ -33,4 +34,7 @@ class CentralDb(object):
             result = conn.execute(stt)
             conn.commit()
 
-    
+
+if __name__ == "__main__":
+    db = CentralDb()
+    db.insert_measure(1,50)

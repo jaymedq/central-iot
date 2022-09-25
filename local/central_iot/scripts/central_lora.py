@@ -7,32 +7,13 @@ from copy import copy
 
 """ This program asks a client for data and waits for the response, then sends an ACK. """
 
-# Copyright 2018 Rui Silva.
-#
-# This file is part of rpsreal/pySX127x, fork of mayeranalytics/pySX127x.
-#
-# pySX127x is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public
-# License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
-# version.
-#
-# pySX127x is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
-# warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
-# details.
-#
-# You can be released from the requirements of the license by obtaining a commercial license. Such a license is
-# mandatory as soon as you develop commercial activities involving pySX127x without disclosing the source code of your
-# own applications, or shipping pySX127x with a closed source product.
-#
-# You should have received a copy of the GNU General Public License along with pySX127.  If not, see
-# <http://www.gnu.org/licenses/>.
-
 class CentralLora(LoRa):
     def __init__(self, verbose=False):
         super(CentralLora, self).__init__(verbose)
         self.set_mode(MODE.SLEEP)
         self.set_dio_mapping([0] * 6)
         self.var = 0
-        self.payload = 0
+        self.payload = None
 
     def on_rx_done(self):
         BOARD.led_on()
@@ -45,12 +26,31 @@ class CentralLora(LoRa):
         print(bytes(payload).decode("utf-8", 'ignore'))  # Receive DATA
         BOARD.led_off()
         time.sleep(2)  # Wait for the client be ready
+
+    def send_ack(self, central_addr:int = 0x01, node_addr:int = 0x02):
+        """Create ack request based on received message
+
+        Args:
+            central_addr (int): integer representing the address
+            node_addr (int): integer representing the address
+        """
         print("Send: ACK")
-        ack = [0x02, 0x01, 0x02, 0x01, 0x01, 0x03]
+        ack = [0x02, central_addr, node_addr, int(True), 0x01, 0x03]
         self.write_payload(ack)  # Send ACK
         self.set_mode(MODE.TX)
         print(ack)
-        self.var = 1
+    
+    def send_nack(self, central_addr:int = 0x01, node_addr:int = 0x02):
+        """Create NACK request based on received message
+
+        Args:
+            message (_type_): _description_
+        """
+        print("Send: ACK")
+        ack = [0x02, central_addr, node_addr, int(False), 0x01, 0x03]
+        self.write_payload(ack)  # Send ACK
+        self.set_mode(MODE.TX)
+        print(ack)
 
     def on_tx_done(self):
         print("\nTxDone")
