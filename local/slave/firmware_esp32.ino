@@ -1,14 +1,19 @@
 /*
-  This is a simple example show the Heltec.LoRa recived data in OLED.
+  Heltec.LoRa Multiple Communication
 
-  The onboard OLED display is SSD1306 driver and I2C interface. In order to make the
-  OLED correctly operation, you should output a high-low-high(1-0-1) signal by soft-
-  ware to OLED's reset pin, the low-level signal at least 5ms.
+  This example provide a simple way to achieve one to multiple devices
+  communication.
 
-  OLED pins to ESP32 GPIOs via this connecthin:
-  OLED_SDA -- GPIO4
-  OLED_SCL -- GPIO15
-  OLED_RST -- GPIO16
+  Each devices send datas in broadcast method. Make sure each devices
+  working in the same BAND, then set the localAddress and destination
+  as you want.
+  
+  Sends a message every half second, and polls continually
+  for new incoming messages. Implements a one-byte addressing scheme,
+  with 0xFD as the broadcast address. You can set this address as you
+  want.
+
+  Note: while sending, Heltec.LoRa radio is not listening for incoming messages.
   
   by Aaron.Lee from HelTec AutoMation, ChengDu, China
   成都惠利特自动化科技有限公司
@@ -17,99 +22,146 @@
   this project also realess in GitHub:
   https://github.com/Heltec-Aaron-Lee/WiFi_Kit_series
 */
-#include "heltec.h" 
-#include "images.h"
+#include "heltec.h"
+#include <ModbusMaster.h>
+
+#define MAX485_DE 25
+#define MAX485_RE_NEG 33
 
 #define BAND    915E6  //you can set band here directly,e.g. 868E6,915E6
-String rssi = "RSSI --";
-String packSize = "--";
-String packet ;
 
-void logo(){
-  Heltec.display->clear();
-  Heltec.display->drawXbm(0,5,logo_width,logo_height,logo_bits);
-  Heltec.display->display();
+ModbusMaster em210Modbus;
+
+byte stx = 0x02;              // start of transmission
+byte localAddress = 0x02;     // address of this device
+byte destination = 0x01;      // destination to send to
+byte sensorId = 0x01;         // sensor identification
+byte measureType = 0x01;      // Type of the measurement
+byte crc = 0x01;              // crc of transmission
+byte etx = 0x03;              // end of transmission
+
+byte msgCount = 0;            // count of outgoing messages
+long lastSendTime = 0;        // last send time
+int interval = 5000;          // interval between sends
+
+
+void preTransmission()
+{
+  digitalWrite(MAX485_DE, 1);
+  digitalWrite(MAX485_RE_NEG, 1);
+  delay(1);
 }
 
-void LoRaData(){
-  Heltec.display->clear();
-  Heltec.display->setTextAlignment(TEXT_ALIGN_LEFT);
-  Heltec.display->setFont(ArialMT_Plain_10);
-  Heltec.display->drawString(0 , 15 , "Received "+ packSize + " bytes");
-  Heltec.display->drawStringMaxWidth(0 , 26 , 128, packet);
-  Heltec.display->drawString(0, 0, rssi);  
-  Heltec.display->display();
+void postTransmission()
+{
+  delay(2);
+  digitalWrite(MAX485_DE, 0);
+  digitalWrite(MAX485_RE_NEG, 0);
 }
 
-void cbk(int packetSize) {
-  char tmp;
-  packet ="";
-  packSize = String(packetSize,DEC);
-  Serial.printf("\npacketSize: %d => ", packetSize);
-  
-  for (int i = 0; i < packetSize; i++) { 
-
-  tmp = (char) LoRa.read();
-    
-    packet += (char) tmp;
-
-     Serial.printf("%02X ", (0xFF & tmp));
-    
-    }
-  rssi = "RSSI " + String(LoRa.packetRssi(), DEC) ;
-  LoRaData();
-}
-
-void setup() { 
-  
-  
-  
-   //WIFI Kit series V1 not support Vext control
-  Heltec.begin(true /*DisplayEnable Enable*/, true /*Heltec.Heltec.Heltec.LoRa Disable*/, false /*Serial Enable*/, true /*PABOOST Enable*/, BAND /*long BAND*/);
- 
-  Heltec.display->init();
-  Heltec.display->flipScreenVertically();  
-  Heltec.display->setFont(ArialMT_Plain_10);
-  logo();
-  delay(1500);
-  Heltec.display->clear();
-  
-  Heltec.display->drawString(0, 0, "Heltec.LoRa Initial success!");
-  Heltec.display->drawString(0, 10, "Wait for incoming data...");
-  Heltec.display->display();
-  delay(1000);
-  //LoRa.onReceive(cbk);
-  LoRa.receive();
+void setup()
+{
+  //WIFI Kit series V1 not support Vext control
+  Heltec.begin(true /*DisplayEnable Enable*/, true /*Heltec.LoRa Enable*/, false /*Serial Enable*/, true /*PABOOST Enable*/, BAND /*long BAND*/);
+  Serial.begin(9600);
+  Serial.flush();
+  Serial.println("Heltec.LoRa Duplex");
+  delay(50);
+  Serial.print("Serial initial done\r\n");
   LoRa.setSpreadingFactor(8);
   LoRa.setSignalBandwidth(500e3);
-  Serial.begin(115200);
+
+  pinMode(MAX485_DE, OUTPUT);
+  pinMode(MAX485_RE_NEG, OUTPUT);
+  digitalWrite(MAX485_DE, 0);
+  digitalWrite(MAX485_RE_NEG, 0);
+  em210Modbus.begin(1, Serial);
+  em210Modbus.preTransmission(preTransmission);
+  em210Modbus.postTransmission(postTransmission);
 }
 
-void loop() {
-  int packetSize = LoRa.parsePacket();
-  if (packetSize) { cbk(packetSize);  }
-  delay(10);
-  //Serial.printf(".\n");
+void loop()
+{
+  /* Central LoRa */
+  if (millis() - lastSendTime > interval)
+  {
+    String message = "PPPP";   // send a message
+    sendMessage(message);
+    //Serial.println("Sending " + message);
+    lastSendTime = millis();            // timestamp the message
+    interval = random(2000) + 1000;    // 2-3 seconds
+  }
+
+  // parse for a packet, and call onReceive with the result:
+  onReceive(LoRa.parsePacket());
+  
+  /* RS485 Modbus EM210 */
+  uint8_t result;
+
+  // Read 2 registers starting at 300001)
+  result = em210Modbus.readInputRegisters(0x0000, 2);
+  if (result == em210Modbus.ku8MBSuccess)
+  {
+    Serial.print("V L1-N: ");
+    Serial.println(em210Modbus.getResponseBuffer(0x01));
+    Serial.println(em210Modbus.getResponseBuffer(0x02));
+  }
+  else
+  {
+    //Serial.print("Failed ");
+  } 
+  delay(1000);
+
 }
 
-//https://www.fernandok.com/2020/05/automacao-lora-e-app-fernando-k.html
-//Envia um pacote LoRa
-void sendLoRaPacket(String str) {
-  //Inicializa o pacote
-  LoRa.beginPacket();
-  //Coloca a string no pacote
-  LoRa.print(str);
-  //Finaliza e envia o pacote
-  LoRa.endPacket();
+void sendMessage(String outgoing)
+{
+  LoRa.beginPacket();                   // start packet
+
+  LoRa.write(stx);                      // start of transmission
+  LoRa.write(localAddress);             // address of this device
+  LoRa.write(destination);              // destination to send to
+  LoRa.write(sensorId);                 // sensor identification
+  LoRa.write(measureType);              // Type of the measurement
+  LoRa.print(outgoing);                 // add payload
+  LoRa.write(crc);                      // end of transmission
+  LoRa.write(etx);                      // end of transmission
+
+  LoRa.endPacket();                     // finish packet and send it
+  msgCount++;                           // increment message ID
 }
-//Faz a leitura de um pacote (se chegou algum)
-String readLoRaPacket() {
-    String packet = "";
-    //Verifica o tamanho do pacote
-    int packetSize = LoRa.parsePacket();
-    //Lê cada caractere e concatena na string 
-    for (int i = 0; i < packetSize; i++) { 
-      packet += (char) LoRa.read(); 
-    }
-    return packet;
+
+int onReceive(int packetSize)
+{
+  int isOk = 0;
+  if (packetSize == 0) return 0;          // if there's no packet, return
+
+  // read packet header bytes:
+  byte stx = LoRa.read();               // STX
+  byte sender = LoRa.read();            // End origem
+  byte receiver = LoRa.read();          // End destino
+  byte status = LoRa.read();            // Status
+  byte crc = LoRa.read();               // CRC
+  byte erx = LoRa.read();               // ETX
+
+  // if the recipient isn't this device or broadcast,
+  if (receiver != localAddress) {
+    Serial.println("This message is not for me.");
+    return 0;                             // skip rest of function
+  }
+  if (status == 0x01)
+  {
+    Serial.println("Central sent status ok");
+    isOk = 1;
+  }
+
+  // if message is for this device, or broadcast, print details:
+  Serial.println("Received from: 0x" + String(sender, HEX));
+  Serial.println("Sent to: 0x" + String(receiver, HEX));
+  Serial.println("Status: " + String(status));
+  Serial.println("Crc: " + String(crc));
+  Serial.println("RSSI: " + String(LoRa.packetRssi()));
+  Serial.println("Snr: " + String(LoRa.packetSnr()));
+  Serial.println();
+  return isOk;
 }
