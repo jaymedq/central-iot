@@ -1,0 +1,10 @@
+Importer Log Report
+Project : pro.PrjPcb
+
+Section : Document - C:\Users\Marli\Desktop\pcbLora\pro.asc
+
+    Section : Import Messages
+        Warning : WARNING: Cut-out region created from PADS keep-out on layer: Top Layer
+        Warning : WARNING: Cut-out region created from PADS keep-out on layer: Top Layer
+    EndSection
+EndSection
