@@ -1,0 +1,4 @@
+[1004/233002:ERROR:tcp_socket_win.cc(335)] bind() returned an error: Normalmente é permitida apenas uma utilização de cada endereço de soquete (protocolo/endereço de rede/porta). (0x2740)
+[1004/233002:ERROR:devtools_http_handler.cc(229)] Cannot start http server for devtools. Stop devtools.
+[1004/233105:ERROR:tcp_socket_win.cc(335)] bind() returned an error: Normalmente é permitida apenas uma utilização de cada endereço de soquete (protocolo/endereço de rede/porta). (0x2740)
+[1004/233105:ERROR:devtools_http_handler.cc(229)] Cannot start http server for devtools. Stop devtools.
