@@ -75,7 +75,7 @@ void setup()
   pinMode(MAX485_RE_NEG, OUTPUT);
   digitalWrite(MAX485_DE, 0);
   digitalWrite(MAX485_RE_NEG, 0);
-  em210Modbus.begin(1, Serial);
+  em210Modbus.begin(2, Serial);
   em210Modbus.preTransmission(preTransmission);
   em210Modbus.postTransmission(postTransmission);
 }
@@ -99,7 +99,8 @@ void loop()
   uint8_t result;
 
   // Read 2 registers starting at 300001)
-  result = em210Modbus.readInputRegisters(0x0000, 2);
+  result = em210Modbus.readInputRegisters(0, 2);
+  delay(50);
   if (result == em210Modbus.ku8MBSuccess)
   {
     Serial.print("V L1-N: ");
@@ -110,7 +111,7 @@ void loop()
   {
     //Serial.print("Failed ");
   } 
-  delay(1000);
+  delay(500);
 
 }
 
