@@ -43,13 +43,13 @@ class NodeMessage(object):
         self.centrl_addr = payload[2]
         self.sensor_id = payload[3]
         self.type = payload[4]
-        self.value = payload[5] << 16 + payload[6]
+        self.value = int.from_bytes(bytes(payload[5:7]),'big')
         self.crc = payload[7]
         self.etx = payload[8]
-        self.calculated_crc = self.calculate_crc8(bytes(payload))
+        self.calculated_crc = self.calculate_crc8(bytes(payload[0:7]))
         self.is_valid = self.is_message_valid()
 
-    def calculate_crc8(data):
+    def calculate_crc8(self, data):
         """Calculates crc using crcmod module
 
         Args:
@@ -72,7 +72,8 @@ class CentralIot(object):
     def __init__(self, address: int = 0):
         self.address = address
         self.lora = CentralLora(verbose=True)
-        self.db = CentralDb('C:\\Users\\claud\\Desktop\\Jayme\\central-iot\\local\\database\\central.db')
+        self.db = CentralDb('/home/pi/central-iot/local/database/central.db')
+        self.registeredDevices = self.db.getRegisteredDevices()
         self.msg_history = []
 
     def setup_lora(self, loraParamsMap: dict = DEFAULT_LORA_PARAMS):
@@ -93,15 +94,16 @@ class CentralIot(object):
             self.lora.reset_ptr_rx()
             self.lora.set_mode(0x85)  # Receiver mode
             start_time = time.time()
-            while (not self.lora.payload or time.time() - start_time < 10):  # wait until receive data or 10s
+            while (not self.lora.payload and time.time() - start_time < 10):  # wait until receive data or 10s
                 pass
-            parsed_message = self.parse_message(self.lora.payload)
+            if self.lora.payload and self.lora.payload[1] in self.registeredDevices:
+                parsed_message = self.parse_message(self.lora.payload)
+                if parsed_message.is_valid:
+                    self.db.insert_measure(parsed_message.sensor_id, value = parsed_message.value)
+                    self.lora.send_ack(central_addr = self.address, node_addr = parsed_message.node_addr)
+                else:
+                    self.lora.send_nack(central_addr = self.address, node_addr = parsed_message.node_addr)
             self.lora.payload = None
-            if parsed_message.is_valid:
-                self.db.insert_measure(parsed_message.sensor_id, value = parsed_message.value)
-                self.lora.send_ack(central_addr = parsed_message.centrl_addr, node_addr = parsed_message.node_addr)
-            else:
-                self.lora.send_nack(central_addr = parsed_message.centrl_addr, node_addr = parsed_message.node_addr)
 
     def parse_message(self, message:bytes)->NodeMessage:
         """Parses a message, save to history and reset payload value.
@@ -126,6 +128,8 @@ except KeyboardInterrupt:
     sys.stdout.flush()
     print("Exit")
     sys.stderr.write("KeyboardInterrupt\n")
+except Exception as e:
+    print(e)
 finally:
     sys.stdout.flush()
     print("Exit")
