@@ -44,9 +44,10 @@ class CentralLora(LoRa):
         """Create NACK request based on received message
 
         Args:
-            message (_type_): _description_
+            central_addr (int): integer representing the address
+            node_addr (int): integer representing the address
         """
-        print("Send: ACK")
+        print("Send: NACK")
         ack = [0x02, central_addr, node_addr, int(False), 0x01, 0x03]
         self.write_payload(ack)  # Send ACK
         self.set_mode(MODE.TX)

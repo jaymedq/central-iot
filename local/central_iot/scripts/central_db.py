@@ -4,15 +4,14 @@ import os
 import sqlite3
 import sqlalchemy
 from sqlalchemy.orm import declarative_base
-from sqlalchemy import MetaData, insert, Table
+from sqlalchemy import MetaData, insert, Table, select, delete
 
 
 class CentralDb(object):
 
     Base = declarative_base()
 
-    # def __init__(self, db_path: os.path = 'sqlite:////home/pi/central-iot/local/database/central.db'):
-    def __init__(self, db_path: os.path = 'C:\\Users\\claud\\Desktop\\Jayme\\central-iot\\central-iot\\local\\database\\central.db'):
+    def __init__(self, db_path: os.path = 'sqlite:////home/pi/central-iot/local/database/central.db'):
         self.db_path = db_path
         self.engine = sqlalchemy.create_engine(f'sqlite:///{db_path}', echo = True, future = True)
         self.metadata = MetaData()
@@ -23,17 +22,26 @@ class CentralDb(object):
         self.measure_table = self.metadata.tables['Measure']
 
     def insert_measure(self, sensor_id, value):
+        """Inserts a measure in local table"""
         with self.engine.connect() as conn:
             stt = insert(self.measure_table).values(
-                Measure_ID = 1,
                 Sensor_ID= sensor_id, 
                 Date_Time= datetime.now().timestamp(), 
                 Value= value
             )
             compiled = stt.compile()
-            result = conn.execute(stt)
+            conn.execute(compiled)
             conn.commit()
 
+    def getRegisteredDevices(self) -> list:
+        """Executes a select from Device table and returns a list of registered devices IDs"""
+        registeredDevices = []
+        with self.engine.connect() as conn:
+            stt = select(self.device_table)
+            result = conn.execute(stt)
+            for row in result:
+                registeredDevices.append(row.Device_ID)
+        return registeredDevices
 
 if __name__ == "__main__":
     db = CentralDb()
