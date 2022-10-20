@@ -1,27 +1,54 @@
 import crcmod
 import sys
+import os
 import time
+from enum import IntEnum
 from central_lora import CentralLora
 from central_db import CentralDb
 from SX127x.board_config import BOARD
 
 DEFAULT_LORA_PARAMS = {
-    "pa_select":1, 
-    "max_power":21, 
-    "output_power":10,
-    "bw":500e3,
-    "coding_rate":1,
-    "spreading_factor":8,
-    "sync_word":0x34,
-    "rx_crc":True,
-    "freq":915,
-    "agc_auto_on":True,
-    "implicit_header_mode":False,
+    "pa_select": 1,
+    "max_power": 21,
+    "output_power": 10,
+    "bw": 500e3,
+    "coding_rate": 1,
+    "spreading_factor": 8,
+    "sync_word": 0x34,
+    "rx_crc": True,
+    "freq": 915,
+    "agc_auto_on": True,
+    "implicit_header_mode": False,
 }
+
+class CentralUnits(IntEnum):
+    UN = 0
+    M = 1
+    KG = 2
+    S = 3
+    A = 4
+    PF = 5
+    MOL = 6
+    CD = 7
+    OHM = 8
+    SIE = 9
+    Wb = 10
+    T = 11
+    Wh = 12
+    W = 13
+    RAD = 14
+    BQ = 15
+    LM = 16
+    V = 17
+    NTU = 18
+    PPM = 19
+    C = 20
+    PC = 21
+
 
 class NodeMessage(object):
     """Class to represent central iot node messages
-    """        
+    """
 
     def __init__(self, payload: list):
         """Construct the node message object from a given payload
@@ -42,8 +69,8 @@ class NodeMessage(object):
         self.node_addr = payload[1]
         self.centrl_addr = payload[2]
         self.sensor_id = payload[3]
-        self.type = payload[4]
-        self.value = int.from_bytes(bytes(payload[5:7]),'big')
+        self.unit = CentralUnits(payload[4])
+        self.value = int.from_bytes(bytes(payload[5:7]), 'big')
         self.crc = payload[7]
         self.etx = payload[8]
         self.calculated_crc = self.calculate_crc8(bytes(payload[0:7]))
@@ -57,8 +84,8 @@ class NodeMessage(object):
 
         Returns:
             int: crc result
-        """        
-        crc8 = crcmod.Crc(0x107,initCrc=0,rev=False,xorOut=0)
+        """
+        crc8 = crcmod.Crc(0x107, initCrc=0, rev=False, xorOut=0)
         crc8.update(data)
         # print('CRC8: ' + str(crc8.crcValue))
         # print('CRC8: ' + str(crc8.hexdigest()))
@@ -67,17 +94,23 @@ class NodeMessage(object):
     def is_message_valid(self):
         return self.crc == self.calculated_crc and self.stx == 0x02 and self.etx == 0x03
 
+
 class CentralIot(object):
 
     def __init__(self, address: int = 0):
         self.address = address
         self.lora = CentralLora(verbose=True)
-        self.db = CentralDb('/home/pi/central-iot/local/database/central.db')
+        self.db = CentralDb(os.environ.get('CENTRAL_POSTGRES_URL', self.get_url_from_file()))
         self.registeredDevices = self.db.getRegisteredDevices()
         self.msg_history = []
 
+    def get_url_from_file(self, path: os.path = None):
+        with open(path or os.path.join(os.path.dirname(__file__),'central_url.txt')) as file:
+            content = file.read()
+        return content
+
     def setup_lora(self, loraParamsMap: dict = DEFAULT_LORA_PARAMS):
-        
+
         self.lora.set_pa_config(pa_select=1, max_power=21, output_power=10)
         self.lora.set_bw(9)
         self.lora.set_coding_rate(1)
@@ -94,18 +127,22 @@ class CentralIot(object):
             self.lora.reset_ptr_rx()
             self.lora.set_mode(0x85)  # Receiver mode
             start_time = time.time()
-            while (not self.lora.payload and time.time() - start_time < 10):  # wait until receive data or 10s
+            # wait until receive data or 10s
+            while (not self.lora.payload and time.time() - start_time < 10):
                 pass
             if self.lora.payload and self.lora.payload[1] in self.registeredDevices:
                 parsed_message = self.parse_message(self.lora.payload)
                 if parsed_message.is_valid:
-                    self.db.insert_measure(parsed_message.sensor_id, value = parsed_message.value)
-                    self.lora.send_ack(central_addr = self.address, node_addr = parsed_message.node_addr)
+                    self.db.insert_measure(device_id=parsed_message.node_addr, sensor_id=parsed_message.sensor_id,
+                                           value=parsed_message.value, unit=parsed_message.unit.name)
+                    self.lora.send_ack(
+                        central_addr=self.address, node_addr=parsed_message.node_addr)
                 else:
-                    self.lora.send_nack(central_addr = self.address, node_addr = parsed_message.node_addr)
+                    self.lora.send_nack(
+                        central_addr=self.address, node_addr=parsed_message.node_addr)
             self.lora.payload = None
 
-    def parse_message(self, message:bytes)->NodeMessage:
+    def parse_message(self, message: bytes) -> NodeMessage:
         """Parses a message, save to history and reset payload value.
 
         Args:
@@ -113,7 +150,8 @@ class CentralIot(object):
         """
         parsed_message = NodeMessage(message)
         self.msg_history.append(parsed_message)
-        return parsed_message                
+        return parsed_message
+
 
 BOARD.setup()
 BOARD.reset()
@@ -130,9 +168,9 @@ except KeyboardInterrupt:
     sys.stderr.write("KeyboardInterrupt\n")
 except Exception as e:
     print(e)
+    raise e
 finally:
     sys.stdout.flush()
     print("Exit")
     central_iot.lora.set_mode(0x80)
     BOARD.teardown()
-
