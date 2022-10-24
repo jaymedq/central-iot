@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, maximum-scale=1">
+    <title>Cadastrar Sensor</title>
+
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+
+<body>
+    <form class="form" action="">
+        <div class="cadastrarsensor_titulo">
+            CADASTRAR <br>SENSOR
+        </div>  
+            
+        <div class="form-field">
+            <label>ID do Dispositivo:</label>
+            <input placeholder="Apenas números" type="text" autocomplete="off" name="idDispositivo" maxlength="10" required>
+        </div>
+
+        <div class="form-field">
+            <label>ID do Sensor:</label>
+            <input placeholder="Apenas números" type="text" autocomplete="off" name="idSensor" maxlength="10" required>
+        </div>
+
+        <div class="form-field">
+            <label>Empresa:</label>
+            <input type="text" autocomplete="off" name="empresa" maxlength="20" required>
+        </div>
+
+        <div class="form-field">
+            <button class="btn bg-azul bg-azul-cadastrar" type="submit">CADASTRAR</button>
+        </div>
+ 
+    </form>
+
+    <script src="script-cadastrarsensor.js">
+    </script>
+</body>
+</html>
