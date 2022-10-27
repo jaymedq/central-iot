@@ -102,3 +102,4 @@ if __name__ == "__main__":
         for measure in allLocalMeasures:
             remoteDb.insert_measure(*measure)
     localDb.deleteAllMeasures()
+    #TODO: Sync registered devices from remote

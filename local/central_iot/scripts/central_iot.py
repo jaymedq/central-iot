@@ -126,7 +126,7 @@ class CentralIot(object):
             # wait until receive data or 10s
             while (not self.lora.payload and time.time() - start_time < 10):
                 pass
-            if len(self.lora.payload) > 6 and self.lora.payload: #and self.lora.payload[1] in self.registeredDevices:
+            if self.lora.payload and len(self.lora.payload) > 6 and self.lora.payload[1] in self.registeredDevices:
                 parsed_message = self.parse_message(self.lora.payload)
                 if parsed_message.is_valid:
                     self.db.insert_measure(None, None, device_id=parsed_message.node_addr, sensor_id=parsed_message.sensor_id,
