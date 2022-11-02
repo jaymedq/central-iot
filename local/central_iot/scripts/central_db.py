@@ -5,6 +5,7 @@ import sqlite3
 import sqlalchemy
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import MetaData, select, delete, text, Table, Column
+from sqlalchemy.engine import Result
 from sqlalchemy.dialects.sqlite import DATETIME
 from sqlalchemy.engine.url import URL
 
@@ -45,40 +46,45 @@ class CentralDb(object):
     def insert_measure(self, id, data_hora: datetime, device_id, sensor_id, value, unit):
         """Inserts a measure in local table"""
         with self.engine.connect() as conn:
-            # stt = insert(self.dados_table).values(
-            data_hora=data_hora.isoformat() or datetime.now().isoformat()
+            data_hora=data_hora.isoformat() if data_hora else datetime.now().isoformat()
             id_dispositivo=device_id
             id_sensor=sensor_id
             valor=value
             grandeza=str(unit)
-            # )
             compiled = f'INSERT INTO dados (data_hora, id_dispositivo, id_sensor, valor, grandeza) VALUES {data_hora, id_dispositivo, id_sensor, valor, grandeza};'
             # compiled = stt.compile()
             conn.execute(text(compiled))
             conn.commit()
 
-    def getRegisteredDevices(self) -> list:
+    def get_registered_devices(self) -> list:
         """Executes a select from Device table and returns a list of registered devices IDs"""
-        registeredDevices = []
+        registered_devices = []
         with self.engine.connect() as conn:
             stt = select(self.sensores_table)
             result = conn.execute(stt)
             for row in result:
-                registeredDevices.append(row.id_dispositivo)
+                registered_devices.append(row.id_dispositivo)
         #remove repeated values
-        return [*set(registeredDevices)]
+        return [*set(registered_devices)]
+    
+    def get_registered_sensors(self) -> Result:
+        """Executes a select from sensors table and returns :class:`_engine.Result`."""
+        with self.engine.connect() as conn:
+            stt = select(self.sensores_table)
+            result = conn.execute(stt)
+        return result
 
-    def getAllMeasures(self) -> list:
-        """Executes a select from measure table and returns a list of results"""
-        measurements = []
+    def get_all_measures(self) -> Result:
+        """Executes a select from measure table and returns a Result"""
+        # measurements = []
         with self.engine.connect() as conn:
             stt = select(self.dados_table)
-            result = conn.execute(stt)
-            for row in result:
-                measurements.append(row)
-        return measurements
+            result = conn.execute(stt).mappings().all()
+            # for row in result:
+            #     measurements.append(row)
+        return result
 
-    def deleteAllMeasures(self) -> list:
+    def delete_all_measures(self) -> list:
         """Executes a delete from measure table"""
         with self.engine.connect() as conn:
             stt = delete(self.dados_table)
@@ -91,15 +97,25 @@ class CentralDb(object):
             content = file.read()
         return content
 
+
+def update_remote_measures_and_local_sensors():
+    remote_db = CentralDb(CentralDb.get_url_from_file())
+    local_db = CentralDb()
+    all_local_measures = local_db.get_all_measures()
+    with remote_db.engine.connect() as remote_conn:
+        remote_conn.execute(remote_db.dados_table.insert(),all_local_measures)
+        remote_conn.commit()
+    # if all_local_measures:
+    #     print(all_local_measures)
+    #     for measure in all_local_measures:
+    #         remote_db.insert_measure(*measure)
+    with local_db.engine.connect() as conn:
+        remote_values = remote_db.get_registered_sensors().mappings().all()
+        conn.execute(local_db.sensores_table.delete())
+        conn.execute(local_db.sensores_table.insert(),remote_values)
+        conn.commit()
+        y = conn.execute(local_db.sensores_table.select()).mappings().all()
+    local_db.delete_all_measures()
+
 if __name__ == "__main__":
-    remoteDb = CentralDb(CentralDb.get_url_from_file())
-    localDb = CentralDb()
-    allLocalMeasures = []
-    # print(remoteDb.getAllMeasures())
-    allLocalMeasures.extend(localDb.getAllMeasures())
-    if allLocalMeasures:
-        print(allLocalMeasures)
-        for measure in allLocalMeasures:
-            remoteDb.insert_measure(*measure)
-    localDb.deleteAllMeasures()
-    #TODO: Sync registered devices from remote
+    update_remote_measures_and_local_sensors()
