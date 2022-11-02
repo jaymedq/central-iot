@@ -44,6 +44,7 @@ byte etx = 0x03;          // end of transmission
 byte msgCount = 0;     // count of outgoing messages
 long lastSendTime = 0; // last send time
 int interval = 5000;   // interval between sends
+uint8_t u8AvailableMeters[] = {1,2,3,4,5,6};
 
 void preTransmission()
 {
@@ -94,72 +95,79 @@ void loop()
 {
     eCentralUnits unit;
     em210RegistersDescription context;
-    for (uint32_t eMeasurementContext = 0; eMeasurementContext < 4; eMeasurementContext++)
+    uint8_t u8AvailableMetersArrayLen = uint8_t(sizeof(u8AvailableMeters) / sizeof(u8AvailableMeters));
+    for (uint8_t u8SensorContext = 0; u8SensorContext < u8AvailableMetersArrayLen; u8SensorContext++)
     {
-        /* RS485 Modbus EM210 */
-        uint8_t result;
-        uint16_t responseBuffer = 0;
+        sensorId = u8AvailableMeters[u8SensorContext];
+        em210Modbus.begin(u8AvailableMeters[u8SensorContext], Serial2);
+        for (uint32_t eMeasurementContext = 0; eMeasurementContext < 4; eMeasurementContext++)
+        {
+            /* RS485 Modbus EM210 */
+            uint8_t result;
+            uint16_t responseBuffer = 0;
 
-        // Read 2 registers starting at 300001)
-        if (eMeasurementContext == 0)
-        {
-            Serial.print("V L-L: ");
-            result = em210Modbus.readHoldingRegisters(0x0026, 2);
-            measureType = uint8_t(eUNIT_V);
-            delay(50);
-        }
-        else if(eMeasurementContext == 1)
-        {
-            Serial.print("Watt: ");
-            result = em210Modbus.readHoldingRegisters(0x0028, 2);
-            measureType = uint8_t(eUNIT_W);
-            delay(50);
-        }
-        else if (eMeasurementContext == 2)
-        {
-            Serial.print("Watt hour: ");
-            result = em210Modbus.readHoldingRegisters(0x0112, 2);
-            measureType = uint8_t(eUNIT_Wh);
-            delay(50);
-        }
-        else if (eMeasurementContext == 3)
-        {
-            Serial.print("Power Factor: ");
-            result = em210Modbus.readHoldingRegisters(0x010C, 2);
-            measureType = uint8_t(eUNIT_PF);
-            delay(50);
-        }
-        else
-        {
-            Serial.print("SHOULD NOT BE HERE, CHECK! ");
-            break;
-        }
+            // Read 2 registers starting at 300001)
+            if (eMeasurementContext == 0)
+            {
+                Serial.print("V L-L: ");
+                result = em210Modbus.readHoldingRegisters(0x0026, 2);
+                measureType = uint8_t(eUNIT_V);
+                delay(50);
+            }
+            else if(eMeasurementContext == 1)
+            {
+                Serial.print("Watt: ");
+                result = em210Modbus.readHoldingRegisters(0x0028, 2);
+                measureType = uint8_t(eUNIT_W);
+                delay(50);
+            }
+            else if (eMeasurementContext == 2)
+            {
+                Serial.print("Watt hour: ");
+                result = em210Modbus.readHoldingRegisters(0x0112, 2);
+                measureType = uint8_t(eUNIT_Wh);
+                delay(50);
+            }
+            else if (eMeasurementContext == 3)
+            {
+                Serial.print("Power Factor: ");
+                result = em210Modbus.readHoldingRegisters(0x010C, 2);
+                measureType = uint8_t(eUNIT_PF);
+                delay(50);
+            }
+            else
+            {
+                Serial.print("SHOULD NOT BE HERE, CHECK! ");
+                break;
+            }
 
-        if (result == em210Modbus.ku8MBSuccess)
-        {
-            Serial.print("\n");
-            responseBuffer = em210Modbus.getResponseBuffer(0x00);
-            Serial.println(String(responseBuffer));
-            em210Modbus.clearResponseBuffer();
-            Serial.print("\n");
+            if (result == em210Modbus.ku8MBSuccess)
+            {
+                Serial.print("\n");
+                responseBuffer = em210Modbus.getResponseBuffer(0x00);
+                Serial.println(String(responseBuffer));
+                em210Modbus.clearResponseBuffer();
+                Serial.print("\n");
+            }
+            else
+            {
+                Serial.print("Failed ");
+            }
+            /* Central LoRa */
+            delay(interval);
+            if (millis() - lastSendTime > interval and result == em210Modbus.ku8MBSuccess)
+            {
+                //uint16_t responseBuffer = em210Modbus.getResponseBuffer(0x00);
+                uint8_t message[2] = {responseBuffer >> 8, responseBuffer & 0xff};
+                sendMessage(message);
+                Serial.println("Status: " + String(responseBuffer));
+                lastSendTime = millis();        // timestamp the message
+                interval = random(2000) + 1000; // 2-3 seconds
+                delay(interval);
+            }
+            // parse for a packet, and call onReceive with the result:
+            onReceive(LoRa.parsePacket());
         }
-        else
-        {
-            Serial.print("Failed ");
-        }
-        /* Central LoRa */
-        delay(interval);
-        if (millis() - lastSendTime > interval and result == em210Modbus.ku8MBSuccess)
-        {
-            //uint16_t responseBuffer = em210Modbus.getResponseBuffer(0x00);
-            uint8_t message[2] = {responseBuffer >> 8, responseBuffer & 0xff};
-            sendMessage(message);
-            Serial.println("Status: " + String(responseBuffer));
-            lastSendTime = millis();        // timestamp the message
-            interval = random(2000) + 1000; // 2-3 seconds
-        }
-        // parse for a packet, and call onReceive with the result:
-        onReceive(LoRa.parsePacket());
     }
     Serial.print("End of inner loop ");
 }
@@ -189,7 +197,7 @@ int onReceive(int packetSize)
     int isOk = 0;
     if (packetSize == 0)
         return 0; // if there's no packet, return
-
+    Serial.println("\nDEBUG\n");
     // read packet header bytes:
     byte stx = LoRa.read();      // STX
     byte sender = LoRa.read();   // End origem
