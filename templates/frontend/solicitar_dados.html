@@ -1,62 +1,64 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
+    <script src="https://cdn.jsdelivr.net/npm/json2csv"></script>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, maximum-scale=1">
     <title>Solicitar Dados</title>
 
     <link rel="stylesheet" type="text/css" href="style.css">
+
 </head>
 
 <body>
-    <form class="form" action="">
+    <form class="form" style="height: initial; margin-top: 200px; margin-bottom: 50px;">
         <div class="solicitardados_titulo">
             SOLICITAR <br>DADOS
-        </div>  
-            
+        </div>
+
         <div class="form-field">
             <label>ID do Dispositivo:</label>
-            <input type="text" name="usuario">
+            <input type="text" autocomplete="off" name="idDispositivo" required>
         </div>
 
         <div class="form-field">
             <label>Data Inicial:</label>
-            <input type="date" name="usuario">
+            <input type="date" name="dtInicial" required>
         </div>
 
         <div class="form-field">
             <label>Data Final:</label>
-            <input type="date" name="usuario">
+            <input type="date" name="dtFinal" required>
         </div>
 
         <div class="center-buttons bg-container-buttons">
             <button class="btn bg-verdeclaro bg-solicitar bg-solicitar-button" type="submit">SOLICITAR</button>
 
-            <button class="btn bg-vermelho bg-solicitar" type="submit">DOWNLOAD DADOS</button>
+            <button class="btn bg-vermelho bg-solicitar" type="button">DOWNLOAD DADOS</button>
         </div>
 
     </form>
 
     <div>
-        <table class="central-table">
+        <table class="central-table" style="display: none">
             <thead>
                 <tr>
                     <th>ID SENSOR</th>
-                    <th>DATA</th>
+                    <th>DATA E HORA</th>
                     <th>VALOR</th>
                     <th>GRANDEZA</th>
                 </tr>
             </thead>
-            <tbody>
-                <tr>
-                    <td>Eletrofrio</td>
-                    <td>08/08/2022</td>
-                    <td>127</td>
-                    <td>V</td>
-                </tr>
+            <tbody class="js-body">
+
             </tbody>
         </table>
     </div>
+
+    <script src="script-solicitardados.js">
+    </script>
 </body>
+
 </html>

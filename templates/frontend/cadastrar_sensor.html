@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, maximum-scale=1">
     <title>Cadastrar Sensor</title>
 
     <link rel="stylesheet" type="text/css" href="style.css">
@@ -17,22 +17,17 @@
             
         <div class="form-field">
             <label>ID do Dispositivo:</label>
-            <input type="text" name="id-dispositivo">
+            <input placeholder="Apenas números" type="text" autocomplete="off" name="idDispositivo" maxlength="10" required>
         </div>
 
         <div class="form-field">
             <label>ID do Sensor:</label>
-            <input type="text" name="id-sensor">
+            <input placeholder="Apenas números" type="text" autocomplete="off" name="idSensor" maxlength="10" required>
         </div>
 
         <div class="form-field">
             <label>Empresa:</label>
-            <input type="text" name="empresa">
-        </div>
-
-        <div class="form-field">
-            <label>Grandeza:</label>
-            <input type="text" name="grandeza">
+            <input type="text" autocomplete="off" name="empresa" maxlength="20" required>
         </div>
 
         <div class="form-field">
@@ -40,5 +35,8 @@
         </div>
  
     </form>
+
+    <script src="script-cadastrarsensor.js">
+    </script>
 </body>
 </html>

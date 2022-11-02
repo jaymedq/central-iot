@@ -100,14 +100,10 @@ class CentralIot(object):
     def __init__(self, address: int = 0):
         self.address = address
         self.lora = CentralLora(verbose=True)
-        self.db = CentralDb(os.environ.get('CENTRAL_POSTGRES_URL', self.get_url_from_file()))
+        # self.db = CentralDb(os.environ.get('CENTRAL_POSTGRES_URL', CentralDb.get_url_from_file()))
+        self.db = CentralDb()
         self.registeredDevices = self.db.getRegisteredDevices()
         self.msg_history = []
-
-    def get_url_from_file(self, path: os.path = None):
-        with open(path or os.path.join(os.path.dirname(__file__),'central_url.txt')) as file:
-            content = file.read()
-        return content
 
     def setup_lora(self, loraParamsMap: dict = DEFAULT_LORA_PARAMS):
 
@@ -130,10 +126,10 @@ class CentralIot(object):
             # wait until receive data or 10s
             while (not self.lora.payload and time.time() - start_time < 10):
                 pass
-            if self.lora.payload and self.lora.payload[1] in self.registeredDevices:
+            if self.lora.payload and len(self.lora.payload) > 6 and self.lora.payload[1] in self.registeredDevices:
                 parsed_message = self.parse_message(self.lora.payload)
                 if parsed_message.is_valid:
-                    self.db.insert_measure(device_id=parsed_message.node_addr, sensor_id=parsed_message.sensor_id,
+                    self.db.insert_measure(None, None, device_id=parsed_message.node_addr, sensor_id=parsed_message.sensor_id,
                                            value=parsed_message.value, unit=parsed_message.unit.name)
                     self.lora.send_ack(
                         central_addr=self.address, node_addr=parsed_message.node_addr)
