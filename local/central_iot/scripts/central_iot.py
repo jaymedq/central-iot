@@ -50,6 +50,17 @@ class CentralUnits(IntEnum):
 class NodeMessage(object):
     """Class to represent central iot node messages
     """
+    payload = None
+    stx = None
+    node_addr = None
+    centrl_addr = None
+    sensor_id = None
+    unit = None
+    value = None
+    crc = None
+    etx = None
+    calculated_crc = None
+    is_valid = None
 
     def __init__(self, payload: list):
         """Construct the node message object from a given payload
@@ -65,17 +76,20 @@ class NodeMessage(object):
         Args:
             payload (list): list of bytes received from node
         """
-        self.payload = payload
-        self.stx = payload[0]
-        self.node_addr = payload[1]
-        self.centrl_addr = payload[2]
-        self.sensor_id = payload[3]
-        self.unit = CentralUnits(payload[4])
-        self.value = int.from_bytes(bytes(payload[5:7]), 'big')
-        self.crc = payload[7]
-        self.etx = payload[8]
-        self.calculated_crc = self.calculate_crc8(bytes(payload[0:7]))
-        self.is_valid = self.is_message_valid()
+        try:
+            self.payload = payload
+            self.stx = payload[0]
+            self.node_addr = payload[1]
+            self.centrl_addr = payload[2]
+            self.sensor_id = payload[3]
+            self.unit = CentralUnits(payload[4])
+            self.value = int.from_bytes(bytes(payload[5:7]), 'big')
+            self.crc = payload[7]
+            self.etx = payload[8]
+            self.calculated_crc = self.calculate_crc8(bytes(payload[0:7]))
+            self.is_valid = self.is_message_valid()
+        except Exception:
+            self.is_valid = False
 
     def calculate_crc8(self, data):
         """Calculates crc using crcmod module
@@ -98,7 +112,7 @@ class NodeMessage(object):
 
 class CentralIot(object):
 
-    def __init__(self, address: int = 0):
+    def __init__(self, address: int = 1):
         self.address = address
         self.lora = CentralLora(verbose=True)
         # self.db = CentralDb(os.environ.get('CENTRAL_POSTGRES_URL', CentralDb.get_url_from_file()))
@@ -108,7 +122,7 @@ class CentralIot(object):
 
     def setup_lora(self, loraParamsMap: dict = DEFAULT_LORA_PARAMS):
 
-        self.lora.set_pa_config(pa_select=1, max_power=21, output_power=10)
+        self.lora.set_pa_config(pa_select=1, max_power=21, output_power=14)
         self.lora.set_bw(9)
         self.lora.set_coding_rate(1)
         self.lora.set_spreading_factor(8)
@@ -127,16 +141,19 @@ class CentralIot(object):
             # wait until receive data or 10s
             while (not self.lora.payload and time.time() - start_time < 10):
                 pass
-            if self.lora.payload and len(self.lora.payload) > 6 and self.lora.payload[1] in self.registeredDevices:
+            if self.lora.payload and self.lora.payload[1]:
                 parsed_message = self.parse_message(self.lora.payload)
-                if parsed_message.is_valid:
-                    self.db.insert_measure(None, None, device_id=parsed_message.node_addr, sensor_id=parsed_message.sensor_id,
-                                           value=parsed_message.value, unit=parsed_message.unit.name)
-                    self.lora.send_ack(
-                        central_addr=self.address, node_addr=parsed_message.node_addr)
-                else:
-                    self.lora.send_nack(
-                        central_addr=self.address, node_addr=parsed_message.node_addr)
+                if parsed_message.node_addr in self.registeredDevices:
+                    #Wait receiver to be ready
+                    time.sleep(0.3)
+                    if parsed_message.is_valid:
+                        self.db.insert_measure(None, None, device_id=parsed_message.node_addr, sensor_id=parsed_message.sensor_id,
+                                            value=parsed_message.value, unit=parsed_message.unit.name)
+                        self.lora.send_ack(
+                            central_addr=self.address, node_addr=parsed_message.node_addr)
+                    else:
+                        self.lora.send_nack(
+                            central_addr=self.address, node_addr=parsed_message.node_addr)
             self.lora.payload = None
 
     def parse_message(self, message: bytes) -> NodeMessage:
