@@ -23,9 +23,11 @@ class CentralLora(LoRa):
         payload = copy(self.payload)
         print("Receive: ")
         print(payload)
-        print(bytes(payload).decode("utf-8", 'ignore'))  # Receive DATA
+        # print(bytes(payload).decode("utf-8", 'ignore'))  # Receive DATA
+        print(f'SNR = {self.get_pkt_snr_value()}')
+        print(f'RSSI= {self.get_pkt_rssi_value()}')
         BOARD.led_off()
-        time.sleep(2)  # Wait for the client be ready
+        self.set_mode(MODE.SLEEP)
 
     def send_ack(self, central_addr:int = 0x01, node_addr:int = 0x02):
         """Create ack request based on received message
@@ -38,6 +40,7 @@ class CentralLora(LoRa):
         ack = [0x02, central_addr, node_addr, int(True), 0x01, 0x03]
         self.write_payload(ack)  # Send ACK
         self.set_mode(MODE.TX)
+        time.sleep(0.2)
         print(ack)
     
     def send_nack(self, central_addr:int = 0x01, node_addr:int = 0x02):
@@ -49,8 +52,9 @@ class CentralLora(LoRa):
         """
         print("Send: NACK")
         ack = [0x02, central_addr, node_addr, int(False), 0x01, 0x03]
-        self.write_payload(ack)  # Send ACK
         self.set_mode(MODE.TX)
+        self.write_payload(ack)  # Send ACK
+        time.sleep(0.2)
         print(ack)
 
     def on_tx_done(self):
