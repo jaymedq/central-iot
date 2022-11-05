@@ -34,10 +34,11 @@ void loop()
     Serial.println("Sending " + message);
     lastSendTime = millis();            // timestamp the message
     interval = random(2000) + 1000;    // 2-3 seconds
+    // parse for a packet, and call onReceive with the result:
+    while (LoRa.available()) {
+      Serial.print((char)LoRa.read());
+    }
   }
-
-  // parse for a packet, and call onReceive with the result:
-  onReceive(LoRa.parsePacket());
 }
 
 void sendMessage(String outgoing)
@@ -63,7 +64,7 @@ int onReceive(int packetSize)
 {
   
   int isOk = 0;
-  if (packetSize == 0) return 0;          // if there's no packet, return
+  // if (packetSize == 0) return 0;          // if there's no packet, return
   Serial.println(packetSize);
   // read packet header bytes:
   byte stx = LoRa.read();               // STX
