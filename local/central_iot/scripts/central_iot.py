@@ -6,6 +6,7 @@ from enum import IntEnum
 from central_lora import CentralLora
 from central_db import CentralDb
 from SX127x.board_config import BOARD
+from datetime import datetime
 
 DEFAULT_LORA_PARAMS = {
     "pa_select": 1,
@@ -102,7 +103,7 @@ class CentralIot(object):
         self.lora = CentralLora(verbose=True)
         # self.db = CentralDb(os.environ.get('CENTRAL_POSTGRES_URL', CentralDb.get_url_from_file()))
         self.db = CentralDb()
-        self.registeredDevices = self.db.getRegisteredDevices()
+        self.registeredDevices = self.db.get_registered_devices()
         self.msg_history = []
 
     def setup_lora(self, loraParamsMap: dict = DEFAULT_LORA_PARAMS):
