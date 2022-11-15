@@ -8,7 +8,11 @@ from sqlalchemy import MetaData, select, delete, text, Table, Column
 from sqlalchemy.engine import Result
 from sqlalchemy.dialects.sqlite import DATETIME
 from sqlalchemy.engine.url import URL
+import requests
+from requests import Response
 
+
+CENTRAL_URL = "https://central-iot.herokuapp.com"
 
 class CentralDb(object):
 
@@ -98,23 +102,66 @@ class CentralDb(object):
         return content
 
 
+# OLD IMPLEMENTATION (Directly to remote database):
+# def update_remote_measures_and_local_sensors():
+#     remote_db = CentralDb(CentralDb.get_url_from_file())
+#     local_db = CentralDb()
+#     all_local_measures = local_db.get_all_measures()
+#     with remote_db.engine.connect() as remote_conn:
+#         remote_conn.execute(remote_db.dados_table.insert(),all_local_measures)
+#         remote_conn.commit()
+#     # if all_local_measures:
+#     #     print(all_local_measures)
+#     #     for measure in all_local_measures:
+#     #         remote_db.insert_measure(*measure)
+#     with local_db.engine.connect() as conn:
+#         remote_values = remote_db.get_registered_sensors().mappings().all()
+#         conn.execute(local_db.sensores_table.delete())
+#         conn.execute(local_db.sensores_table.insert(),remote_values)
+#         conn.commit()
+#         y = conn.execute(local_db.sensores_table.select()).mappings().all()
+#     local_db.delete_all_measures()
+
+def get_remote_registered_sensors():
+    return requests.get(CENTRAL_URL+"/obtersensores").json()
+
+def post_measure(id, data_hora: datetime, id_dispositivo, id_sensor, valor, grandeza) -> Response:
+    """Executes a post request to central
+
+    Args:
+        data_hora (datetime): _description_
+        id_dispositivo (int): _description_
+        id_sensor (int): _description_
+        valor (int): _description_
+        grandeza (_type_): _description_
+    Returns:
+        Response: Post request result
+    """        
+    jsonData = {
+        "data_hora": data_hora.isoformat() if data_hora else datetime.now().isoformat(), 
+        "id_dispositivo": id_dispositivo, 
+        "id_sensor": id_sensor, 
+        "valor": valor, 
+        "grandeza": str(grandeza)
+    }
+    r = requests.post(url = CENTRAL_URL+'/salvarmedidas',json=jsonData)
+    return r
+
 def update_remote_measures_and_local_sensors():
-    remote_db = CentralDb(CentralDb.get_url_from_file())
+    """
+    Updates the remote measures with local database entries 
+    and also updates the local sensors table with remote values
+    """
     local_db = CentralDb()
     all_local_measures = local_db.get_all_measures()
-    with remote_db.engine.connect() as remote_conn:
-        remote_conn.execute(remote_db.dados_table.insert(),all_local_measures)
-        remote_conn.commit()
-    # if all_local_measures:
-    #     print(all_local_measures)
-    #     for measure in all_local_measures:
-    #         remote_db.insert_measure(*measure)
+    for measure in all_local_measures:
+        post_measure(**measure)
+    remote_registered_sensors = get_remote_registered_sensors()
     with local_db.engine.connect() as conn:
-        remote_values = remote_db.get_registered_sensors().mappings().all()
         conn.execute(local_db.sensores_table.delete())
-        conn.execute(local_db.sensores_table.insert(),remote_values)
+        conn.execute(local_db.sensores_table.insert(),remote_registered_sensors)
         conn.commit()
-        y = conn.execute(local_db.sensores_table.select()).mappings().all()
+        # y = conn.execute(local_db.sensores_table.select()).mappings().all()
     local_db.delete_all_measures()
 
 if __name__ == "__main__":
