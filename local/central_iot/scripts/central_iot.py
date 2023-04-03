@@ -3,6 +3,8 @@ import sys
 import os
 import time
 from enum import IntEnum
+if __name__ == '__main__':
+    sys.path.append(os.path.join(os.path.dirname(__file__)))
 from central_lora import CentralLora
 from central_db import CentralDb
 from SX127x.board_config import BOARD
