@@ -58,13 +58,16 @@ class CentralAPIClient:
             print('You must login first!')
             return
         headers = {'Authorization': 'Bearer ' + self.token}
+        date_time = data_hora or datetime.now()
         jsonData = {
-            "data_hora": data_hora.isoformat() if data_hora else datetime.now().isoformat(), 
+            "date_time": date_time.strftime("%Y-%m-%d %H:%M:%S"), 
             "device_id": id_dispositivo, 
             "sensor_id": id_sensor, 
             "value": valor, 
             "measure_type": str(grandeza)
         }
-        r = requests.post(url = self.base_url+'/measures',json=jsonData, headers=headers)
+        r = requests.post(url = self.base_url+'/insert_measurement',json=jsonData, headers=headers)
+        if r.status_code == 200:
+            print(f"Measurement posted successfully = {jsonData.values()}")
         return r
 
