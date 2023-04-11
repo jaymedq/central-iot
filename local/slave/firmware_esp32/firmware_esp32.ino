@@ -5,6 +5,7 @@
 #define MAX485_RE_NEG 33
 #define CENTRAL_IOT_PROTOCOL_RETRIES 3
 #define BAND 915E6 // you can set band here directly,e.g. 868E6,915E6
+#define FIRMWARE_DELAY 900000 // 15 minutes in milliseconds
 
 #define DEBUG 0
 #if DEBUG == 1
@@ -41,7 +42,7 @@ typedef enum
 } eCentralUnits;
 
 uint8_t stx = 0x02;          // start of transmission
-uint8_t localAddress = 0x0E; // address of this device
+uint8_t localAddress = 0x01; // address of this device
 uint8_t destination = 0x01;  // destination to send to
 uint8_t sensorId = 0x01;     // sensor identification
 uint8_t measureType = 0x01;  // Type of the measurement
@@ -52,7 +53,7 @@ uint32_t centralFailures = 0;
 uint8_t msgCount = 0;                    // count of outgoing messages
 long lastSendTime = 0;                // last send time
 int interval = 5000;                  // interval between sends
-uint8_t u8AvailableMeters[] = {1, 2}; //,3,4,5,6};
+uint8_t u8AvailableMeters[] = {1, 2, 3, 4, 5, 6}; //,3,4,5,6};
 
 void preTransmission()
 {
@@ -201,7 +202,7 @@ void loop()
             Serial.print("Failed to receive response from CentralIoT after 5 seconds, retrying...");
           }
         }
-        Serial.printf("\n-----------------\nTotal Failures: %d\n-----------------\n", centralFailures);
+        Serial.printf("\n-----------------\nTotal LoRa Failures: %d\n-----------------\n", centralFailures);
       }
 
       debugf("End of inner loop ");
@@ -209,6 +210,7 @@ void loop()
     debugf("End of Medium loop ");
   }
   debugf("End of Outer loop ");
+  delay(FIRMWARE_DELAY); // 15 minutes in milliseconds
 }
 
 void sendMessage(uint8_t *outgoing)
