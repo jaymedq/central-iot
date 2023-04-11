@@ -1,0 +1,3 @@
+@reboot /usr/bin/python3 /home/pi/central-iot/local/central_iot/scripts/central_iot.py>/home/pi/central_logs.txt
+*/15 * * * * /usr/bin/python3 /home/pi/central-iot/local/central_iot/scripts/central_db.py
+@reboot echo 'pwd' | su -s /bin/sh pi -c 'cd /home/pi/central-iot && /usr/bin/git pull origin main'
