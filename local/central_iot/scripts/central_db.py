@@ -13,7 +13,7 @@ from requests import Response
 
 from central_api_client import CentralAPIClient
 
-CENTRAL_URL = "https://central-iot.onrender.com"
+CENTRAL_URL = "https://api.vistalux.com.br"
 
 class CentralDb(object):
 
