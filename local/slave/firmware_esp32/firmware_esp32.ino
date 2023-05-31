@@ -5,14 +5,19 @@
 #define MAX485_RE_NEG 33
 #define CENTRAL_IOT_PROTOCOL_RETRIES 3
 #define BAND 915E6 // you can set band here directly,e.g. 868E6,915E6
-#define FIRMWARE_DELAY 900000 // 15 minutes in milliseconds
+#define FIRMWARE_DELAY_SECONDS 900 // 15 minutes in seconds
 
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG == 1
   #define debugf(x, ...) Serial.printf(x, ##__VA_ARGS__)
 #else
   #define debugf(x, ...)
 #endif
+
+struct Measurement {
+  uint16_t value;
+  uint8_t measureType;
+};
 
 ModbusMaster em210Modbus;
 typedef enum
@@ -53,7 +58,7 @@ uint32_t centralFailures = 0;
 uint8_t msgCount = 0;                    // count of outgoing messages
 long lastSendTime = 0;                // last send time
 int interval = 5000;                  // interval between sends
-uint8_t u8AvailableMeters[] = {1, 2, 3, 4, 5, 6}; //,3,4,5,6};
+uint8_t u8AvailableMeters[20] = {1,2,3,4,5,6,7,8,9,10}; //,3,4,5,6};
 
 void preTransmission()
 {
@@ -100,131 +105,182 @@ typedef enum
   eEM210_N
 } em210RegistersDescription;
 
+const uint8_t AVAILABLE_METERS_COUNT = sizeof(u8AvailableMeters) / sizeof(u8AvailableMeters[0]);
+const uint8_t MAX_MEASUREMENT_CONTEXT = 4;
+const uint8_t MODBUS_RETRY_COUNT = 40;
+const unsigned long MIN_INTERVAL = 1000;
+const unsigned long MAX_INTERVAL = 3000;
+
+Measurement measurementBuffer[MAX_MEASUREMENT_CONTEXT];
+
+void sendMeasurementToCentralIoT(Measurement measurement)
+{
+  if(0 != measurement.measureType)
+  {
+    sendMessage(measurement);
+    Serial.println("[LORA] Measurement sent to Central: Type " + String(measurement.measureType) + " Value " + String(measurement.value));
+  }
+}
+
+bool readMeasurement(ModbusMaster& em210Modbus, uint16_t registerAddress, uint8_t measureType, uint8_t measurementIndex)
+{
+  for (uint8_t retryCount = 0; retryCount < MODBUS_RETRY_COUNT; retryCount++)
+  {
+    Serial.print("[MODBUS] Sending modbus command...");
+    em210Modbus.clearResponseBuffer();
+    uint8_t modbusRequestResult = em210Modbus.readHoldingRegisters(registerAddress, 2);
+    debugf("\nModBusRequestResult\n%d", modbusRequestResult);
+    if (modbusRequestResult == em210Modbus.ku8MBSuccess)
+    {
+      uint16_t responseBuffer = em210Modbus.getResponseBuffer(0x00);
+      Serial.println(" Success, value: " + String(responseBuffer));
+      em210Modbus.clearResponseBuffer();
+      measurementBuffer[measurementIndex] = {responseBuffer, measureType};
+      return true;
+    }
+    else if(modbusRequestResult == em210Modbus.ku8MBResponseTimedOut)
+    {
+      Serial.println(" Failed to read, due timeout.");
+      return false;
+    }
+    else
+    {
+      Serial.println(" Failed to read, retrying...");
+      delay(10);
+    }
+  }
+
+  return false;
+}
+
+void sendMeasurementsFromBuffer()
+{
+  for (uint8_t measurementIndex = 0; measurementIndex < MAX_MEASUREMENT_CONTEXT; measurementIndex++)
+  {
+    sendMeasurementToCentralIoT(measurementBuffer[measurementIndex]);
+    delay(50);
+  }
+}
+
+uint8_t detectedMeters = 10;
+void detectAndAddMeters()
+{
+  detectedMeters = 0;
+  uint8_t detectedMeterIndex = 0;
+  uint8_t maxDetectedMeters = sizeof(u8AvailableMeters) / sizeof(u8AvailableMeters[0]);
+
+  for (uint8_t sensorId = 1; sensorId <= maxDetectedMeters; sensorId++) {
+    em210Modbus.begin(sensorId, Serial2);
+    if (readMeasurement(em210Modbus, 0x0028, eUNIT_W, 0)) {  // Read eUNIT_W register
+      u8AvailableMeters[detectedMeterIndex++] = sensorId;
+      detectedMeters++;
+      if (detectedMeters >= maxDetectedMeters) {
+        break;  // Maximum number of detected meters reached
+      }
+    }
+  }
+
+  // Print the detected meters
+  Serial.print("Detected meters: ");
+  for (uint8_t i = 0; i < detectedMeters; i++) {
+    Serial.print(u8AvailableMeters[i]);
+    Serial.print(" ");
+  }
+  Serial.println();
+}
+
+
 void loop()
 {
   debugf("Begin of outer loop");
+
   eCentralUnits unit;
   em210RegistersDescription context;
-  uint8_t u8AvailableMetersArrayLen = (sizeof(u8AvailableMeters) / sizeof(u8AvailableMeters[0]));
-  debugf("u8AvailableMetersArrayLen = %d", u8AvailableMetersArrayLen);
-  for (uint8_t u8SensorContext = 0; u8SensorContext < u8AvailableMetersArrayLen; u8SensorContext++)
+
+  for (uint8_t meterIndex = 0; meterIndex < detectedMeters; meterIndex++)
   {
-    debugf("---- Using sensor %d ----\n ", u8SensorContext);
-    sensorId = u8AvailableMeters[u8SensorContext];
-    em210Modbus.begin(u8AvailableMeters[u8SensorContext], Serial2);
-    for (uint32_t eMeasurementContext = 0; eMeasurementContext < 4; eMeasurementContext++)
+    debugf("---- Using sensor %d ----\n", meterIndex);
+    sensorId = u8AvailableMeters[meterIndex];
+    em210Modbus.begin(sensorId, Serial2);
+
+    for(uint8_t index = 0; index < MAX_MEASUREMENT_CONTEXT; index++)
     {
-      /* RS485 Modbus EM210 */
-      uint8_t modbusRequestResult;
-      uint16_t responseBuffer = 0;
-
-      // Read 2 registers starting at 300001)
-      if (eMeasurementContext == 0)
-      {
-        Serial.print("V L-L: ");
-        modbusRequestResult = em210Modbus.readHoldingRegisters(0x0026, 2);
-        measureType = uint8_t(eUNIT_V);
-        delay(50);
-      }
-      else if (eMeasurementContext == 1)
-      {
-        Serial.print("Watt: ");
-        modbusRequestResult = em210Modbus.readHoldingRegisters(0x0028, 2);
-        measureType = uint8_t(eUNIT_W);
-        delay(50);
-      }
-      else if (eMeasurementContext == 2)
-      {
-        Serial.print("Watt hour: ");
-        modbusRequestResult = em210Modbus.readHoldingRegisters(0x0112, 2);
-        measureType = uint8_t(eUNIT_Wh);
-        delay(50);
-      }
-      else if (eMeasurementContext == 3)
-      {
-        Serial.print("Power Factor: ");
-        modbusRequestResult = em210Modbus.readHoldingRegisters(0x010C, 2);
-        measureType = uint8_t(eUNIT_PF);
-        delay(50);
-      }
-      else
-      {
-        Serial.print("SHOULD NOT BE HERE, CHECK! ");
-        break;
-      }
-
-      if (modbusRequestResult == em210Modbus.ku8MBSuccess)
-      {
-        Serial.print("\n");
-        responseBuffer = em210Modbus.getResponseBuffer(0x00);
-        Serial.println(String(responseBuffer));
-        em210Modbus.clearResponseBuffer();
-        Serial.print("\n");
-      }
-      else
-      {
-        Serial.print("Failed ");
-      }
-
-      if (modbusRequestResult == em210Modbus.ku8MBSuccess)
-      {
-        for (uint8_t u8Retries = 0; u8Retries < CENTRAL_IOT_PROTOCOL_RETRIES; u8Retries++)
-        {
-          bool centralOk = false;
-          /* Central LoRa */
-          if (not(millis() - lastSendTime > interval))
-          {
-            delay(millis() - lastSendTime);
-          }
-          uint8_t message[2] = {responseBuffer >> 8, responseBuffer & 0xff};
-          sendMessage(message);
-          Serial.println("Status: " + String(responseBuffer));
-          lastSendTime = millis();        // timestamp the message
-          interval = random(2000) + 1000; // 2-3 seconds
-          LoRa.receive();
-          // parse for a packet, and call onReceive with the result:
-          int initial = millis();
-          while (millis() - initial <= 5000)
-          {
-            int packetSize = LoRa.parsePacket();
-            if (packetSize)
-            {
-              centralOk = onReceive(packetSize);
-            }
-          }
-          if (centralOk)
-          {
-            break;
-          }
-          if (u8Retries > 0)
-          {
-            centralFailures++;
-            Serial.print("Failed to receive response from CentralIoT after 5 seconds, retrying...");
-          }
-        }
-        Serial.printf("\n-----------------\nTotal LoRa Failures: %d\n-----------------\n", centralFailures);
-      }
-
-      debugf("End of inner loop ");
+      measurementBuffer[index].value = 0;
+      measurementBuffer[index].measureType = 0;
     }
-    debugf("End of Medium loop ");
+
+    for (uint32_t measurementIndex = 0; measurementIndex < MAX_MEASUREMENT_CONTEXT; measurementIndex++)
+    {
+      uint16_t registerAddress = 0;
+      uint8_t measureType = 0;
+      
+      switch (measurementIndex)
+      {
+        case 0:
+          Serial.print("V L-L: ");
+          registerAddress = 0x0026;
+          measureType = eUNIT_V;
+          break;
+        case 1:
+          Serial.print("Watt: ");
+          registerAddress = 0x0028;
+          measureType = eUNIT_W;
+          break;
+        case 2:
+          Serial.print("Watt hour: ");
+          registerAddress = 0x0112;
+          measureType = eUNIT_Wh;
+          break;
+        case 3:
+          Serial.print("Power Factor: ");
+          registerAddress = 0x010C;
+          measureType = eUNIT_PF;
+          break;
+        default:
+          Serial.print("SHOULD NOT BE HERE, CHECK! ");
+          break;
+      }
+
+      if (registerAddress)
+      {
+        if (readMeasurement(em210Modbus, registerAddress, measureType, measurementIndex))
+          continue;
+        else
+        {
+          measurementBuffer[measurementIndex].value = 0;
+          measurementBuffer[measurementIndex].measureType = 0;
+        }
+      }
+
+      Serial.println("Failed to read measurement after retries.");
+    }
+
+    sendMeasurementsFromBuffer();
+
+    debugf("[DEBUG] End of meter measurement loop ");
   }
-  debugf("End of Outer loop ");
-  delay(FIRMWARE_DELAY); // 15 minutes in milliseconds
+
+  debugf("[DEBUG] End of %d meters reading loop ", detectedMeters);
+  detectAndAddMeters();
+  debugf("[DEBUG] Detected %d meters, sleeping for %d seconds",detectedMeters, FIRMWARE_DELAY_SECONDS);
+  delay(FIRMWARE_DELAY_SECONDS*3);
 }
 
-void sendMessage(uint8_t *outgoing)
+
+
+void sendMessage(Measurement outputMeasurement)
 {
+  uint8_t outgoing[2] = {outputMeasurement.value >> 8, outputMeasurement.value & 0xFF};
   LoRa.beginPacket(); // start packet
 
   LoRa.write(stx);          // start of transmission
   LoRa.write(localAddress); // address of this device
   LoRa.write(destination);  // destination to send to
   LoRa.write(sensorId);     // sensor identification
-  LoRa.write(measureType);  // Type of the measurement
+  LoRa.write(outputMeasurement.measureType);  // Type of the measurement
   LoRa.write(outgoing[0]);  // add payload
   LoRa.write(outgoing[1]);  // add payload
-  uint8_t data[] = {stx, localAddress, destination, sensorId, measureType, outgoing[0], outgoing[1]};
+  uint8_t data[] = {stx, localAddress, destination, sensorId, outputMeasurement.measureType, outgoing[0], outgoing[1]};
   crc = crc8(data, 7, 0);
   LoRa.write(crc); // end of transmission
   LoRa.write(etx); // end of transmission
