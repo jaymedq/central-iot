@@ -760,10 +760,28 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
       // verify response is for correct Modbus slave
       if (_u8ModbusADU[0] != _u8MBSlave)
       {
-        u8MBStatus = ku8MBInvalidSlaveID;
+        if (_u8ModbusADU[1] == _u8MBSlave && (_u8ModbusADU[2] & 0x7F) == u8MBFunction)
+        {
+          for (uint8_t zeroarrayIndex = 1; zeroarrayIndex < u8ModbusADUSize; zeroarrayIndex++)
+          {
+            _u8ModbusADU[zeroarrayIndex - 1] = _u8ModbusADU[zeroarrayIndex];
+          }
+          u8ModbusADUSize--;
+        }
+        else if (_u8ModbusADU[2] == _u8MBSlave && (_u8ModbusADU[3] & 0x7F) == u8MBFunction)
+        {
+          for (uint8_t zeroarrayIndex = 2; zeroarrayIndex < u8ModbusADUSize; zeroarrayIndex++)
+          {
+            _u8ModbusADU[zeroarrayIndex - 2] = _u8ModbusADU[zeroarrayIndex];
+          }
+          u8ModbusADUSize = u8ModbusADUSize - 2;
+        }
+        else
+        {
+          u8MBStatus = ku8MBInvalidSlaveID;
+        }
         break;
       }
-      
       // verify response is for correct Modbus function code (mask exception bit 7)
       if ((_u8ModbusADU[1] & 0x7F) != u8MBFunction)
       {
