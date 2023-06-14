@@ -58,7 +58,7 @@ uint32_t centralFailures = 0;
 uint8_t msgCount = 0;                    // count of outgoing messages
 long lastSendTime = 0;                // last send time
 int interval = 5000;                  // interval between sends
-uint8_t u8AvailableMeters[20] = {1,2,3,4,5,6,7,8,9,10}; //,3,4,5,6};
+uint8_t u8AvailableMeters[] = {1,2,3,4,5,6,7,8,9,10}; //,3,4,5,6};
 
 void preTransmission()
 {
@@ -69,7 +69,7 @@ void preTransmission()
 
 void postTransmission()
 {
-  delay(2);
+  delay(1);
   digitalWrite(MAX485_DE, 0);
   digitalWrite(MAX485_RE_NEG, 0);
 }
@@ -128,7 +128,17 @@ bool readMeasurement(ModbusMaster& em210Modbus, uint16_t registerAddress, uint8_
   {
     Serial.print("[MODBUS] Sending modbus command...");
     em210Modbus.clearResponseBuffer();
+    em210Modbus.clearTransmitBuffer();
+
     uint8_t modbusRequestResult = em210Modbus.readHoldingRegisters(registerAddress, 2);
+    debugf("\n--- Expected Slave ADDR: %d ",em210Modbus._u8MBSlave);
+    debugf("Actual: %d ---\n", em210Modbus._u8ModbusADU[0]);
+    debugf("\n --- Whole buffer: ---\n");
+    for(uint8_t i = 0; i<30;i++)
+    {
+      debugf(" %d", em210Modbus._u8ModbusADU[i]);
+    }
+
     debugf("\nModBusRequestResult\n%d", modbusRequestResult);
     if (modbusRequestResult == em210Modbus.ku8MBSuccess)
     {
@@ -155,14 +165,48 @@ bool readMeasurement(ModbusMaster& em210Modbus, uint16_t registerAddress, uint8_
 
 void sendMeasurementsFromBuffer()
 {
+  bool centralOk = false;
   for (uint8_t measurementIndex = 0; measurementIndex < MAX_MEASUREMENT_CONTEXT; measurementIndex++)
   {
-    sendMeasurementToCentralIoT(measurementBuffer[measurementIndex]);
-    delay(50);
+    if(0 != measurementBuffer[measurementIndex].measureType)
+    {
+      /* Central LoRa */
+      if (false == (millis() - lastSendTime > interval))
+      {
+        delay(millis() - lastSendTime);
+      }
+      for (uint8_t u8Retries = 0; u8Retries < CENTRAL_IOT_PROTOCOL_RETRIES; u8Retries++)
+      {
+        sendMeasurementToCentralIoT(measurementBuffer[measurementIndex]);
+        Serial.println("Status: " + String(measurementBuffer[measurementIndex].value));
+        lastSendTime = millis();        // timestamp the message
+        interval = random(2000) + 1000; // 2-3 seconds
+        LoRa.receive();
+        // parse for a packet, and call onReceive with the result:
+        int initial = millis();
+        while (millis() - initial <= 5000)
+        {
+          int packetSize = LoRa.parsePacket();
+          if (packetSize)
+          {
+            centralOk = onReceive(packetSize);
+          }
+        }
+        if (centralOk)
+        {
+          break;
+        }
+        if (u8Retries > 0)
+        {
+          centralFailures++;
+          Serial.print("Failed to receive response from CentralIoT after 5 seconds, retrying...");
+        }
+      }
+    }
   }
 }
 
-uint8_t detectedMeters = 10;
+uint8_t detectedMeters = 6;
 void detectAndAddMeters()
 {
   detectedMeters = 0;
@@ -263,7 +307,7 @@ void loop()
   debugf("[DEBUG] End of %d meters reading loop ", detectedMeters);
   detectAndAddMeters();
   debugf("[DEBUG] Detected %d meters, sleeping for %d seconds",detectedMeters, FIRMWARE_DELAY_SECONDS);
-  delay(FIRMWARE_DELAY_SECONDS*3);
+  delay(FIRMWARE_DELAY_SECONDS*1000);
 }
 
 

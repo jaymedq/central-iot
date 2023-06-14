@@ -599,7 +599,11 @@ Sequence:
 */
 uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
 {
-  uint8_t u8ModbusADU[256];
+  // memcpy(_u8ModbusADU, 0, 255);
+  for(uint8_t i = 0; i<255;i++)
+  {
+    _u8ModbusADU[i] = 0;
+  }
   uint8_t u8ModbusADUSize = 0;
   uint8_t i, u8Qty;
   uint16_t u16CRC;
@@ -608,8 +612,8 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
   uint8_t u8MBStatus = ku8MBSuccess;
   
   // assemble Modbus Request Application Data Unit
-  u8ModbusADU[u8ModbusADUSize++] = _u8MBSlave;
-  u8ModbusADU[u8ModbusADUSize++] = u8MBFunction;
+  _u8ModbusADU[u8ModbusADUSize++] = _u8MBSlave;
+  _u8ModbusADU[u8ModbusADUSize++] = u8MBFunction;
   
   switch(u8MBFunction)
   {
@@ -618,10 +622,10 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
     case ku8MBReadInputRegisters:
     case ku8MBReadHoldingRegisters:
     case ku8MBReadWriteMultipleRegisters:
-      u8ModbusADU[u8ModbusADUSize++] = highByte(_u16ReadAddress);
-      u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16ReadAddress);
-      u8ModbusADU[u8ModbusADUSize++] = highByte(_u16ReadQty);
-      u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16ReadQty);
+      _u8ModbusADU[u8ModbusADUSize++] = highByte(_u16ReadAddress);
+      _u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16ReadAddress);
+      _u8ModbusADU[u8ModbusADUSize++] = highByte(_u16ReadQty);
+      _u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16ReadQty);
       break;
   }
   
@@ -633,38 +637,38 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
     case ku8MBWriteSingleRegister:
     case ku8MBWriteMultipleRegisters:
     case ku8MBReadWriteMultipleRegisters:
-      u8ModbusADU[u8ModbusADUSize++] = highByte(_u16WriteAddress);
-      u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16WriteAddress);
+      _u8ModbusADU[u8ModbusADUSize++] = highByte(_u16WriteAddress);
+      _u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16WriteAddress);
       break;
   }
   
   switch(u8MBFunction)
   {
     case ku8MBWriteSingleCoil:
-      u8ModbusADU[u8ModbusADUSize++] = highByte(_u16WriteQty);
-      u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16WriteQty);
+      _u8ModbusADU[u8ModbusADUSize++] = highByte(_u16WriteQty);
+      _u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16WriteQty);
       break;
       
     case ku8MBWriteSingleRegister:
-      u8ModbusADU[u8ModbusADUSize++] = highByte(_u16TransmitBuffer[0]);
-      u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16TransmitBuffer[0]);
+      _u8ModbusADU[u8ModbusADUSize++] = highByte(_u16TransmitBuffer[0]);
+      _u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16TransmitBuffer[0]);
       break;
       
     case ku8MBWriteMultipleCoils:
-      u8ModbusADU[u8ModbusADUSize++] = highByte(_u16WriteQty);
-      u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16WriteQty);
+      _u8ModbusADU[u8ModbusADUSize++] = highByte(_u16WriteQty);
+      _u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16WriteQty);
       u8Qty = (_u16WriteQty % 8) ? ((_u16WriteQty >> 3) + 1) : (_u16WriteQty >> 3);
-      u8ModbusADU[u8ModbusADUSize++] = u8Qty;
+      _u8ModbusADU[u8ModbusADUSize++] = u8Qty;
       for (i = 0; i < u8Qty; i++)
       {
         switch(i % 2)
         {
           case 0: // i is even
-            u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16TransmitBuffer[i >> 1]);
+            _u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16TransmitBuffer[i >> 1]);
             break;
             
           case 1: // i is odd
-            u8ModbusADU[u8ModbusADUSize++] = highByte(_u16TransmitBuffer[i >> 1]);
+            _u8ModbusADU[u8ModbusADUSize++] = highByte(_u16TransmitBuffer[i >> 1]);
             break;
         }
       }
@@ -672,22 +676,22 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
       
     case ku8MBWriteMultipleRegisters:
     case ku8MBReadWriteMultipleRegisters:
-      u8ModbusADU[u8ModbusADUSize++] = highByte(_u16WriteQty);
-      u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16WriteQty);
-      u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16WriteQty << 1);
+      _u8ModbusADU[u8ModbusADUSize++] = highByte(_u16WriteQty);
+      _u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16WriteQty);
+      _u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16WriteQty << 1);
       
       for (i = 0; i < lowByte(_u16WriteQty); i++)
       {
-        u8ModbusADU[u8ModbusADUSize++] = highByte(_u16TransmitBuffer[i]);
-        u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16TransmitBuffer[i]);
+        _u8ModbusADU[u8ModbusADUSize++] = highByte(_u16TransmitBuffer[i]);
+        _u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16TransmitBuffer[i]);
       }
       break;
       
     case ku8MBMaskWriteRegister:
-      u8ModbusADU[u8ModbusADUSize++] = highByte(_u16TransmitBuffer[0]);
-      u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16TransmitBuffer[0]);
-      u8ModbusADU[u8ModbusADUSize++] = highByte(_u16TransmitBuffer[1]);
-      u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16TransmitBuffer[1]);
+      _u8ModbusADU[u8ModbusADUSize++] = highByte(_u16TransmitBuffer[0]);
+      _u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16TransmitBuffer[0]);
+      _u8ModbusADU[u8ModbusADUSize++] = highByte(_u16TransmitBuffer[1]);
+      _u8ModbusADU[u8ModbusADUSize++] = lowByte(_u16TransmitBuffer[1]);
       break;
   }
   
@@ -695,11 +699,11 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
   u16CRC = 0xFFFF;
   for (i = 0; i < u8ModbusADUSize; i++)
   {
-    u16CRC = crc16_update(u16CRC, u8ModbusADU[i]);
+    u16CRC = crc16_update(u16CRC, _u8ModbusADU[i]);
   }
-  u8ModbusADU[u8ModbusADUSize++] = lowByte(u16CRC);
-  u8ModbusADU[u8ModbusADUSize++] = highByte(u16CRC);
-  u8ModbusADU[u8ModbusADUSize] = 0;
+  _u8ModbusADU[u8ModbusADUSize++] = lowByte(u16CRC);
+  _u8ModbusADU[u8ModbusADUSize++] = highByte(u16CRC);
+  _u8ModbusADU[u8ModbusADUSize] = 0;
 
   // flush receive buffer before transmitting request
   while (_serial->read() != -1);
@@ -711,7 +715,7 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
   }
   for (i = 0; i < u8ModbusADUSize; i++)
   {
-    _serial->write(u8ModbusADU[i]);
+    _serial->write(_u8ModbusADU[i]);
   }
   
   u8ModbusADUSize = 0;
@@ -730,7 +734,7 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
 #if __MODBUSMASTER_DEBUG__
       digitalWrite(__MODBUSMASTER_DEBUG_PIN_A__, true);
 #endif
-      u8ModbusADU[u8ModbusADUSize++] = _serial->read();
+      _u8ModbusADU[u8ModbusADUSize++] = _serial->read();
       u8BytesLeft--;
 #if __MODBUSMASTER_DEBUG__
       digitalWrite(__MODBUSMASTER_DEBUG_PIN_A__, false);
@@ -754,35 +758,35 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
     if (u8ModbusADUSize == 5)
     {
       // verify response is for correct Modbus slave
-      if (u8ModbusADU[0] != _u8MBSlave)
+      if (_u8ModbusADU[0] != _u8MBSlave)
       {
         u8MBStatus = ku8MBInvalidSlaveID;
         break;
       }
       
       // verify response is for correct Modbus function code (mask exception bit 7)
-      if ((u8ModbusADU[1] & 0x7F) != u8MBFunction)
+      if ((_u8ModbusADU[1] & 0x7F) != u8MBFunction)
       {
         u8MBStatus = ku8MBInvalidFunction;
         break;
       }
       
       // check whether Modbus exception occurred; return Modbus Exception Code
-      if (bitRead(u8ModbusADU[1], 7))
+      if (bitRead(_u8ModbusADU[1], 7))
       {
-        u8MBStatus = u8ModbusADU[2];
+        u8MBStatus = _u8ModbusADU[2];
         break;
       }
       
       // evaluate returned Modbus function code
-      switch(u8ModbusADU[1])
+      switch(_u8ModbusADU[1])
       {
         case ku8MBReadCoils:
         case ku8MBReadDiscreteInputs:
         case ku8MBReadInputRegisters:
         case ku8MBReadHoldingRegisters:
         case ku8MBReadWriteMultipleRegisters:
-          u8BytesLeft = u8ModbusADU[2];
+          u8BytesLeft = _u8ModbusADU[2];
           break;
           
         case ku8MBWriteSingleCoil:
@@ -810,12 +814,12 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
     u16CRC = 0xFFFF;
     for (i = 0; i < (u8ModbusADUSize - 2); i++)
     {
-      u16CRC = crc16_update(u16CRC, u8ModbusADU[i]);
+      u16CRC = crc16_update(u16CRC, _u8ModbusADU[i]);
     }
     
     // verify CRC
-    if (!u8MBStatus && (lowByte(u16CRC) != u8ModbusADU[u8ModbusADUSize - 2] ||
-      highByte(u16CRC) != u8ModbusADU[u8ModbusADUSize - 1]))
+    if (!u8MBStatus && (lowByte(u16CRC) != _u8ModbusADU[u8ModbusADUSize - 2] ||
+      highByte(u16CRC) != _u8ModbusADU[u8ModbusADUSize - 1]))
     {
       u8MBStatus = ku8MBInvalidCRC;
     }
@@ -825,27 +829,27 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
   if (!u8MBStatus)
   {
     // evaluate returned Modbus function code
-    switch(u8ModbusADU[1])
+    switch(_u8ModbusADU[1])
     {
       case ku8MBReadCoils:
       case ku8MBReadDiscreteInputs:
         // load bytes into word; response bytes are ordered L, H, L, H, ...
-        for (i = 0; i < (u8ModbusADU[2] >> 1); i++)
+        for (i = 0; i < (_u8ModbusADU[2] >> 1); i++)
         {
           if (i < ku8MaxBufferSize)
           {
-            _u16ResponseBuffer[i] = word(u8ModbusADU[2 * i + 4], u8ModbusADU[2 * i + 3]);
+            _u16ResponseBuffer[i] = word(_u8ModbusADU[2 * i + 4], _u8ModbusADU[2 * i + 3]);
           }
           
           _u8ResponseBufferLength = i;
         }
         
         // in the event of an odd number of bytes, load last byte into zero-padded word
-        if (u8ModbusADU[2] % 2)
+        if (_u8ModbusADU[2] % 2)
         {
           if (i < ku8MaxBufferSize)
           {
-            _u16ResponseBuffer[i] = word(0, u8ModbusADU[2 * i + 3]);
+            _u16ResponseBuffer[i] = word(0, _u8ModbusADU[2 * i + 3]);
           }
           
           _u8ResponseBufferLength = i + 1;
@@ -856,11 +860,11 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
       case ku8MBReadHoldingRegisters:
       case ku8MBReadWriteMultipleRegisters:
         // load bytes into word; response bytes are ordered H, L, H, L, ...
-        for (i = 0; i < (u8ModbusADU[2] >> 1); i++)
+        for (i = 0; i < (_u8ModbusADU[2] >> 1); i++)
         {
           if (i < ku8MaxBufferSize)
           {
-            _u16ResponseBuffer[i] = word(u8ModbusADU[2 * i + 3], u8ModbusADU[2 * i + 4]);
+            _u16ResponseBuffer[i] = word(_u8ModbusADU[2 * i + 3], _u8ModbusADU[2 * i + 4]);
           }
           
           _u8ResponseBufferLength = i;
