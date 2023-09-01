@@ -132,15 +132,16 @@ def update_remote_measures_and_local_sensors():
     api_client = CentralAPIClient(CENTRAL_URL)
     api_client.login("central","geptcc22")
     all_local_measures = local_db.get_all_measures()
-    for measure in all_local_measures:
-        api_client.post_measure(**measure)
+    if len(all_local_measures)>1:
+        r = api_client.post_measure_list(all_local_measures)
+    elif len(all_local_measures) == 1:
+        r = api_client.post_measure(**all_local_measures[0])
     remote_registered_sensors = api_client.get_sensors()
     with local_db.engine.connect() as conn:
         conn.execute(local_db.sensores_table.delete())
         conn.execute(local_db.sensores_table.insert(),remote_registered_sensors)
         conn.commit()
         # y = conn.execute(local_db.sensores_table.select()).mappings().all()
-    local_db.delete_all_measures()
 
 if __name__ == "__main__":
     update_remote_measures_and_local_sensors()

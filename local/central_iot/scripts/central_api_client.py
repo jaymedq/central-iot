@@ -71,3 +71,32 @@ class CentralAPIClient:
             print(f"Measurement posted successfully = {jsonData.values()}")
         return r
 
+
+    def post_measure_list(self, measure_list:list) -> requests.Response:
+        """Executes a post request to central
+
+        Args:
+            measure_list (list) : List of measures to be inserted.
+        Returns:
+            Response: Post request result
+        """
+        json_data_list = []
+        for measure in measure_list:
+            if not self.token:
+                print('You must login first!')
+                return
+            headers = {'Authorization': 'Bearer ' + self.token}
+            date_time = measure.get("data_hora") or datetime.now()
+            jsonData = {
+                "date_time": date_time.strftime("%Y-%m-%d %H:%M:%S"), 
+                "device_id": measure.get("id_dispositivo"), 
+                "sensor_id": measure.get("id_sensor"), 
+                "value": measure.get("valor"), 
+                "measure_type": str(measure.get("grandeza"))
+            }
+            json_data_list.append(jsonData)
+        r = requests.post(url = self.base_url+'/insert_measurement',json=json_data_list, headers=headers)
+        if r.status_code == 200:
+            print(f"Measurement posted successfully = {measure_list}")
+        return r
+
